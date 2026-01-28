@@ -21,6 +21,7 @@ if (-not $Message) {
         year = 2024
         rating = "8.5"
         description = "Автоматически сгенерированное тестовое сообщение"
+        genre = "боевик"
     } | ConvertTo-Json -Compress
 
     Write-Host "⚠️  Сообщение не указано, используется тестовое" -ForegroundColor Yellow

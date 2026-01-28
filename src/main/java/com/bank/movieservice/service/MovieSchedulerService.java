@@ -55,7 +55,7 @@ public class MovieSchedulerService {
             System.out.println("📅 Запуск ежедневного планировщика. День: " + LocalDate.now().getDayOfWeek() + ", Жанр: " + genre);
 
             // 2. Запрашиваем фильмы из Kinopoisk API
-            List<Movie> movies = kinopoiskService.searchAndSaveFilms(genre, null, null, 7.0, null);
+            List<Movie> movies = kinopoiskService.searchAndSaveFilms(genre, null, null, null, 7.0, null);
 
             if (movies.isEmpty()) {
                 System.out.println("⚠️ Не найдено новых фильмов для жанра: " + genre);

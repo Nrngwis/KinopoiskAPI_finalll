@@ -1,7 +1,7 @@
 # Настройки планировщика
 scheduler:
   enabled: true
-  cron: "0 0 7 * * *"
+  cron: "0 * * * * *"
 
 # Расписание жанров по дням недели
 daily-genre:

@@ -27,21 +27,29 @@ public class MovieController {
 
     private final KinopoiskService kinopoiskService;
     private final EmailService emailService;
-    private final MovieService movieService; // Добавляем MovieService
+    private final MovieService movieService;
 
     // Поиск фильмов в Кинопоиске и сохранение в БД
     @GetMapping("/v2/films")
     public ResponseEntity<?> searchAndSaveFilms(
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String genre, // Добавлен новый параметр
             @RequestParam(required = false) Integer yearFrom,
             @RequestParam(required = false) Integer yearTo,
             @RequestParam(required = false) Double ratingFrom,
             @RequestParam(required = false) Double ratingTo) {
 
         try {
-            var savedMovies = kinopoiskService.searchAndSaveFilms(keyword, yearFrom, yearTo, ratingFrom, ratingTo);
+            // Теперь передаем все 6 параметров
+            var savedMovies = kinopoiskService.searchAndSaveFilms(
+                    keyword,
+                    genre,
+                    yearFrom,
+                    yearTo,
+                    ratingFrom,
+                    ratingTo
+            );
 
-            // Используем MovieService для конвертации
             List<MovieResponse> savedMoviesDto = movieService.convertToResponseList(savedMovies);
 
             Map<String, Object> response = new HashMap<>();
@@ -77,7 +85,7 @@ public class MovieController {
             var predicates = new java.util.ArrayList<javax.persistence.criteria.Predicate>();
 
             if (keyword != null) {
-                predicates.add(cb.like(cb.lower(root.get("filmName")), "%" + keyword.toLowerCase() + "%"));
+                predicates.add(cb.like(cb.lower(root.get("title")), "%" + keyword.toLowerCase() + "%"));
             }
             if (yearFrom != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("year"), yearFrom));
