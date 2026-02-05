@@ -23,8 +23,9 @@ public class MovieService {
         this.movieRepository = movieRepository;
     }
 
-    public Page<Movie> getMovies(Specification<Movie> spec, Pageable pageable) {
-        return movieRepository.findAll(spec, pageable);
+    public Page<MovieResponse> getMovies(Specification<Movie> spec, Pageable pageable) {
+        return movieRepository.findAll(spec, pageable)
+                .map(MovieResponse::fromEntity);
     }
 
     // Получить MovieResponse по ID

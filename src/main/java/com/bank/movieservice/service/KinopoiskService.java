@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -101,6 +102,7 @@ public class KinopoiskService {
      * @param ratingTo - рейтинг до
      * @return список сохраненных фильмов
      */
+    @Transactional
     public List<Movie> searchAndSaveFilms(String keyword, String genre, Integer yearFrom, Integer yearTo,
                                           Double ratingFrom, Double ratingTo) {
 
@@ -200,7 +202,7 @@ public class KinopoiskService {
                     Movie movie = convertToMovieEntity(film);
                     Movie saved = movieRepository.save(movie);
                     savedMovies.add(saved);
-                    System.out.println("💾 Сохранен фильм: " + saved.getDescription() + " (ID: " + saved.getFilmId() + ")");
+                    System.out.println("💾 Сохранен фильм: " + saved.getFilmName() + " (ID: " + saved.getFilmId() + ")");
                 } catch (Exception e) {
                     System.err.println("❌ Ошибка сохранения фильма ID " + film.getKinopoiskId() + ": " + e.getMessage());
                 }
@@ -214,6 +216,48 @@ public class KinopoiskService {
             e.printStackTrace();
             return Collections.emptyList();
         }
+    }
+
+    /**
+     * Преобразование Film API в сущность Movie с получением существующих жанров
+     */
+    private Movie convertToMovieEntity(KinopoiskResponse.Film film) {
+        // Создаем фильм
+        Movie movie = new Movie(
+                film.getKinopoiskId(),
+                film.getNameRu() != null ? film.getNameRu() : film.getNameEn(),
+                film.getYear(),
+                film.getRatingKinopoisk() != null ?
+                        BigDecimal.valueOf(film.getRatingKinopoisk()) : BigDecimal.ZERO,
+                film.getDescription()
+        );
+
+        // Получаем существующие жанры из БД
+        if (film.getGenres() != null && !film.getGenres().isEmpty()) {
+            Set<Genre> existingGenres = new HashSet<>();
+
+            for (KinopoiskResponse.GenreDto genreDto : film.getGenres()) {
+                String genreName = genreDto.getGenre();
+                if (genreName == null || genreName.trim().isEmpty()) {
+                    continue;
+                }
+
+                // Ищем существующий жанр в БД
+                genreRepository.findByName(genreName)
+                        .ifPresent(existingGenres::add);
+            }
+
+            // Устанавливаем существующие жанры в фильм
+            if (!existingGenres.isEmpty()) {
+                movie.getGenres().addAll(existingGenres);
+                System.out.println("🎭 Получены существующие жанры для фильма " + movie.getFilmName() + ": " +
+                        existingGenres.stream()
+                                .map(Genre::getName)
+                                .collect(Collectors.joining(", ")));
+            }
+        }
+
+        return movie;
     }
 
     /**
@@ -234,38 +278,6 @@ public class KinopoiskService {
 
         // Просто вызываем основной метод с параметром genre
         return searchAndSaveFilms(null, findGenreNameById(genreId), yearFrom, yearTo, ratingFrom, ratingTo);
-    }
-
-    /**
-     * Преобразование Film API в сущность Movie
-     */
-    private Movie convertToMovieEntity(KinopoiskResponse.Film film) {
-        Movie movie = new Movie(
-                film.getKinopoiskId(),
-                film.getNameRu(),
-                film.getYear(),
-                film.getRatingKinopoisk() != null ?
-                        BigDecimal.valueOf(film.getRatingKinopoisk()) : null,
-                film.getDescription()
-        );
-
-        // Обрабатываем жанры
-        if (film.getGenres() != null && !film.getGenres().isEmpty()) {
-            Set<Genre> genres = film.getGenres().stream()
-                    .map(genreDto -> {
-                        String genreName = genreDto.getGenre();
-                        // Ищем существующий жанр или создаем новый
-                        return genreRepository.findByName(genreName)
-                                .orElseGet(() -> {
-                                    Genre newGenre = new Genre(genreName);
-                                    return genreRepository.save(newGenre);
-                                });
-                    })
-                    .collect(Collectors.toSet());
-            movie.setGenres(genres);
-        }
-
-        return movie;
     }
 
     /**

@@ -24,7 +24,7 @@ public class EmailService {
 
     private final JavaMailSender mailSender;
 
-    @Value("${spring.mail.username:#{null}}")
+    @Value("${EMAIL_USERNAME}")
     private String yandexUsername;
 
     private final MovieRepository movieRepository;

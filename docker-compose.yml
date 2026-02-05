@@ -6,7 +6,7 @@ services:
     image: mysql:8.0
     container_name: kinopoisk-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
       MYSQL_DATABASE: kinopoiskdb
     ports:
       - "3307:3306"
@@ -73,9 +73,13 @@ services:
     ports:
       - "8080:8080"
     environment:
+
       # Обязательные секретные данные (берутся из .env файла)
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
       API_KEY: ${API_KEY:?API_KEY must be set}
+
+      EMAIL_USERNAME: ${EMAIL_USERNAME:?EMAIL_USERNAME must be set}
+      EMAIL_PASSWORD: ${EMAIL_PASSWORD:?EMAIL_PASSWORD must be set}
 
       # Остальные настройки
       DB_URL: jdbc:mysql://mysql:3306/kinopoiskdb

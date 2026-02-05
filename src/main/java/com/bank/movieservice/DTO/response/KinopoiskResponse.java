@@ -28,6 +28,15 @@ public class KinopoiskResponse {
             this.nameRu = nameRu;
         }
 
+        private String nameEn;
+
+        public String getNameEn() {
+            return nameEn != null ? nameEn : "";
+        }
+
+        public void setNameEn(String nameEn) {
+            this.nameEn = nameEn;
+        }
 
         private Integer year;
 

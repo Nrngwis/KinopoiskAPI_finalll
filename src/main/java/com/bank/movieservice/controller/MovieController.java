@@ -64,7 +64,7 @@ public class MovieController {
 
     // Поиск фильмов из базы данных
     @GetMapping("/films")
-    public ResponseEntity<Page<Movie>> getFilms(
+    public ResponseEntity<Page<MovieResponse>> getFilms(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Integer yearFrom,
             @RequestParam(required = false) Integer yearTo,
@@ -103,7 +103,7 @@ public class MovieController {
             return cb.and(predicates.toArray(new javax.persistence.criteria.Predicate[0]));
         };
 
-        Page<Movie> films = movieService.getMovies(spec, pageable);
+        Page<MovieResponse> films = movieService.getMovies(spec, pageable);
         return ResponseEntity.ok(films);
     }
 

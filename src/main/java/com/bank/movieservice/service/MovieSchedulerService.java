@@ -8,12 +8,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -47,18 +49,19 @@ public class MovieSchedulerService {
     @Value("${daily-genre.schedule.SUNDAY:мультфильм}")
     private String sundayGenre;
 
-    @Scheduled(cron = "${scheduler.cron:0 0 7 * * *}") // Каждый день в 7 утра
+    @Scheduled(cron = "${scheduler.cron:0 0 7 * * *}")
+    @Transactional
     public void sendToKafka() {
         try {
             // 1. Определяем жанр по дню недели
             String genre = getGenreForToday();
-            System.out.println("📅 Запуск ежедневного планировщика. День: " + LocalDate.now().getDayOfWeek() + ", Жанр: " + genre);
+            System.out.println("📅 Запуск планировщика. Жанр дня: " + genre + " | Дата: " + LocalDate.now());
 
-            // 2. Запрашиваем фильмы из Kinopoisk API
-            List<Movie> movies = kinopoiskService.searchAndSaveFilms(genre, null, null, null, 7.0, null);
+            // 2. Получаем фильмы из API (с существующими жанрами)
+            List<Movie> movies = kinopoiskService.searchAndSaveFilms(null, genre, null, null, 7.0, null);
 
             if (movies.isEmpty()) {
-                System.out.println("⚠️ Не найдено новых фильмов для жанра: " + genre);
+                System.out.println("⚠️ Не найдено фильмов для жанра: " + genre);
                 return;
             }
 
@@ -66,20 +69,37 @@ public class MovieSchedulerService {
             int sentCount = 0;
             for (Movie movie : movies) {
                 try {
+                    // Сериализуем фильм с его существующими жанрами
                     String movieJson = convertMovieToJson(movie);
                     kafkaTemplate.send(movieTopic, movieJson);
                     sentCount++;
+
+                    // Логируем информацию о фильме и его жанрах
+                    String genreNames = getGenreNames(movie);
+
+                    System.out.println(String.format("📤 Отправлен в Kafka: %s (ID: %d) | Жанры: %s",
+                            movie.getFilmName(), movie.getFilmId(), genreNames));
+
                 } catch (JsonProcessingException e) {
-                    System.err.println("❌ Ошибка сериализации фильма ID=" + movie.getId() + ": " + e.getMessage());
+                    System.err.println("❌ Ошибка сериализации фильма: " + e.getMessage());
                 }
             }
 
-            System.out.println("✅ Отправлено " + sentCount + " фильмов в Kafka топик: " + movieTopic);
+            System.out.println("✅ Всего отправлено фильмов в Kafka: " + sentCount);
 
         } catch (Exception e) {
             System.err.println("❌ Ошибка в планировщике: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    private String getGenreNames(Movie movie) {
+        if (movie.getGenres() == null || movie.getGenres().isEmpty()) {
+            return "нет жанров";
+        }
+        return movie.getGenres().stream()
+                .map(g -> g.getName())
+                .collect(Collectors.joining(", "));
     }
 
     private String getGenreForToday() {
@@ -97,20 +117,23 @@ public class MovieSchedulerService {
         return genreMap.getOrDefault(today, "драма");
     }
 
+    /**
+     * Конвертация Movie в JSON для Kafka (включая существующие жанры фильма)
+     */
     private String convertMovieToJson(Movie movie) throws JsonProcessingException {
         Map<String, Object> movieData = new HashMap<>();
         movieData.put("id", movie.getId());
         movieData.put("filmId", movie.getFilmId());
         movieData.put("filmName", movie.getFilmName());
         movieData.put("year", movie.getYear());
-        movieData.put("rating", movie.getRating());
+        movieData.put("rating", movie.getRating() != null ? movie.getRating().toString() : "0.0");
         movieData.put("description", movie.getDescription());
 
-        // Добавляем жанры
+        // Получаем существующие жанры фильма
         if (movie.getGenres() != null && !movie.getGenres().isEmpty()) {
             List<String> genreNames = movie.getGenres().stream()
                     .map(genre -> genre.getName())
-                    .collect(java.util.stream.Collectors.toList());
+                    .collect(Collectors.toList());
             movieData.put("genres", genreNames);
         } else {
             movieData.put("genres", new java.util.ArrayList<>());
